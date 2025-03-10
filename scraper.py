@@ -31,11 +31,11 @@ def fetch_and_parse_menu():
         # Use browser developer tools to inspect the HTML and find the right selectors
         
         # Look for calendar days with menu items
-        days = soup.select('.calendar-day-has-menu')  # Adjust this selector
+        days = soup.select('.calendar-day')  # Adjust this selector
         
         for day in days:
             # Extract date information
-            date_element = day.select_one('.date')  # Adjust this selector
+            date_element = day.select_one('.sr-only')  # Adjust this selector
             if not date_element:
                 continue
                 
@@ -52,7 +52,7 @@ def fetch_and_parse_menu():
             
             # Extract menu items
             menu_items = []
-            items_elements = day.select('.menu-item-name')  # Adjust this selector
+            items_elements = day.select('.item recipe-name')  # Adjust this selector
             for item in items_elements:
                 menu_items.append(item.text.strip())
             
