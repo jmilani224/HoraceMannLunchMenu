@@ -31,11 +31,28 @@ jobs:
     - name: Run calendar update script
       run: python scraper.py
 
-    - name: Commit and push if there are changes
+    - name: Create empty calendar file if it doesn't exist
+      run: |
+        if [ ! -f lunch_calendar.ics ]; then
+          echo "Creating empty calendar file as fallback"
+          python -c "
+import icalendar
+import datetime
+import pytz
+cal = icalendar.Calendar()
+cal.add('prodid', '-//School Lunch Menu Calendar//example.com//')
+cal.add('version', '2.0')
+cal.add('X-WR-CALNAME', 'School Lunch Menu')
+cal.add('X-WR-CALDESC', 'Daily school lunch menu items')
+with open('lunch_calendar.ics', 'wb') as f:
+  f.write(cal.to_ical())
+          "
+        fi
+
+    - name: Commit and push changes
       run: |
         git config --global user.name 'GitHub Actions'
         git config --global user.email 'actions@github.com'
         git add lunch_calendar.ics
-        # Continue even if there are no changes
         git commit -m "Update lunch calendar" || echo "No changes to commit"
         git push
