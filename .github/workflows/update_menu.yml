@@ -1,0 +1,34 @@
+name: Update School Menu
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily at midnight UTC
+  workflow_dispatch:  # Allows manual execution
+
+jobs:
+  update-menu:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: npm install node-fetch@2
+
+    - name: Fetch and update school menu
+      run: node update_menu.js
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add school_menu.ics
+        git commit -m "Auto-update school menu"
+        git push
+      continue-on-error: true  # Prevent failures if no changes were made
