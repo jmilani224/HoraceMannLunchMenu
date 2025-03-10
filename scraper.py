@@ -5,18 +5,13 @@ import uuid
 from datetime import datetime, timedelta
 import pytz
 import os
-import time
-import schedule
-from flask import Flask, send_file
 
 # URL for the lunch menu
 MENU_URL = "https://myschoolmenus.com/organizations/1543/sites/11029/menus/74432"
 # Path to store the generated ICS file
-ICS_PATH = "lunch_menu.ics"
+ICS_PATH = "lunch_calendar.ics"
 # Timezone - adjust to your local timezone
 TIMEZONE = pytz.timezone('America/New_York')
-
-app = Flask(__name__)
 
 def fetch_and_parse_menu():
     """Fetch menu data from the school menu website and parse it."""
@@ -29,35 +24,45 @@ def fetch_and_parse_menu():
         soup = BeautifulSoup(response.text, 'html.parser')
         
         # This is where you'll need to customize the parsing logic based on the actual HTML structure
-        # The following is a placeholder implementation
         menu_by_date = {}
         
         # Example: Find menu items by date
-        # Adjust the selectors based on the actual HTML structure of the page
-        menu_days = soup.select('.menu-day')  # This selector will likely need adjustment
+        # The following selectors will need to be adjusted based on the actual page structure
+        # Use browser developer tools to inspect the HTML and find the right selectors
         
-        for day in menu_days:
-            # Extract date
-            date_element = day.select_one('.date')  # Adjust selector
+        # Look for calendar days with menu items
+        days = soup.select('.calendar-day-has-menu')  # Adjust this selector
+        
+        for day in days:
+            # Extract date information
+            date_element = day.select_one('.date')  # Adjust this selector
             if not date_element:
                 continue
                 
+            # Parse the date (adjust format as needed)
             date_str = date_element.text.strip()
             try:
-                # Adjust the date parsing based on how dates are formatted on the site
                 date_obj = datetime.strptime(date_str, '%B %d, %Y').date()
             except ValueError:
-                continue
+                # Try alternative format
+                try:
+                    date_obj = datetime.strptime(date_str, '%m/%d/%Y').date()
+                except ValueError:
+                    continue
             
             # Extract menu items
             menu_items = []
-            items_elements = day.select('.menu-item')  # Adjust selector
+            items_elements = day.select('.menu-item-name')  # Adjust this selector
             for item in items_elements:
                 menu_items.append(item.text.strip())
             
             if menu_items:
                 menu_by_date[date_obj] = menu_items
         
+        # If the above parsing doesn't work, you might need a different approach
+        # The site might load data via JavaScript, which might require a different technique
+        
+        print(f"Found menu items for {len(menu_by_date)} days")
         return menu_by_date
         
     except requests.exceptions.RequestException as e:
@@ -107,47 +112,19 @@ def create_ical_feed(menu_by_date):
         f.write(cal.to_ical())
     
     print(f"Calendar updated with {len(menu_by_date)} days of lunch menus")
+    return len(menu_by_date) > 0
 
-def update_calendar_feed():
-    """Fetch menu data and update the calendar feed."""
+def main():
+    """Main function to update the calendar feed."""
     menu_by_date = fetch_and_parse_menu()
     if menu_by_date:
-        create_ical_feed(menu_by_date)
-        print("Calendar feed updated successfully!")
+        success = create_ical_feed(menu_by_date)
+        if success:
+            print("Calendar feed updated successfully!")
+        else:
+            print("Failed to update calendar feed: No menu events created.")
     else:
         print("Failed to update calendar feed: No menu data available.")
 
-# Flask route to serve the ICS file
-@app.route('/lunch_calendar.ics')
-def serve_calendar():
-    return send_file(ICS_PATH, mimetype='text/calendar')
-
-@app.route('/')
-def home():
-    return """
-    <html>
-    <head><title>School Lunch Calendar</title></head>
-    <body>
-        <h1>School Lunch Calendar</h1>
-        <p>Subscribe to this calendar feed in your calendar application using this URL:</p>
-        <code>https://your-domain.com/lunch_calendar.ics</code>
-        <p>Last updated: {}</p>
-    </body>
-    </html>
-    """.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-
 if __name__ == "__main__":
-    # Update the calendar feed initially
-    update_calendar_feed()
-    
-    # Schedule the update to run daily
-    schedule.every().day.at("06:00").do(update_calendar_feed)
-    
-    # Run the Flask app in a separate thread
-    import threading
-    threading.Thread(target=lambda: app.run(host='0.0.0.0', port=5000, use_reloader=False)).start()
-    
-    # Keep the scheduler running
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
+    main()
